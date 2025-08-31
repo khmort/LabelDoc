@@ -3,6 +3,7 @@
 ## Description
 This project is a dedicated application for **document labeling** with output in **YOLO format**.  
 It allows users to draw bounding boxes on different parts of scanned documents and generate annotations ready for object detection training.  
+![LabelDoc Demo][demo.gif]
 
 ---
 
