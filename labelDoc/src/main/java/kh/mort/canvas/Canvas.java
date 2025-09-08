@@ -11,38 +11,34 @@ import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import javax.swing.JPanel;
 
+import kh.mort.Dictionary;
+
 public class Canvas extends JPanel {
 
     public BufferedImage img;
-    public Point cursorPoint;
-
-    protected Box cornerFor;
-    protected List<Box> boxes;
-    protected List<Box> selects;
-
+    public Dictionary<Box, Integer> boxes;
+    
+    private Point cursorPoint;
+    private List<Box> selects;
+    private Box cornerFor;
     private Box imgBox;
     private Point cornerPoint;
     private Point clickedPoint;
     private boolean multipleSelection = false;
     private Point basePoint;
     
-    public Canvas() {
-        initListeners();
-        boxes = new ArrayList<>();
-        selects = new ArrayList<>();
-    }
-
-    public static double distance(Point p1, Point p2) {
+    public static final double distance(Point p1, Point p2) {
         double w = p1.x - p2.x;
         double h = p1.y - p2.y;
         return Math.sqrt(w * w + h * h);
     }
-
-    public static Point getFarthest(Point p, Box box) {
+    
+    private static final Point getFarthest(Point p, Box box) {
         double maxDist = -1;
         Point bestPoint = null;
         for (Point c : box.getCorners()) {
@@ -54,12 +50,18 @@ public class Canvas extends JPanel {
         }
         return bestPoint;
     }
-
-    public static <T> void setListItem(List<T> list, T oldItem, T newItem) {
+    
+    public static final <T> void setListItem(List<T> list, T oldItem, T newItem) {
         int index = list.indexOf(oldItem);
-        if (index == -1)
-            return;
-        list.set(index, newItem);
+        if (index != -1) {
+            list.set(index, newItem);
+        }
+    }
+
+    public Canvas() {
+        initListeners();
+        boxes = new Dictionary<>();
+        selects = new ArrayList<>();
     }
 
     private void initListeners() {
@@ -70,7 +72,7 @@ public class Canvas extends JPanel {
                 cursorPoint = e.getPoint();
                 cornerPoint = null;
                 cornerFor = null;
-                for (Box box : boxes) {
+                for (Box box : boxes.getKeys()) {
                     Point[] corners = box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1).getCorners();
                     for (Point corner : corners) {
                         if (distance(corner, e.getPoint()) <= 5.0) {
@@ -98,7 +100,7 @@ public class Canvas extends JPanel {
                     cornerFor = target;
                     basePoint = clickedPoint;
 
-                    boxes.add(cornerFor);
+                    boxes.add(cornerFor, -1);
                     selects.add(cornerFor);
 
                 } else {
@@ -111,7 +113,9 @@ public class Canvas extends JPanel {
                     isEditing = Box.createBox(basePoint, e.getPoint()).move(-imgBox.x1, -imgBox.y1)
                         .getNorm(imgBox.getWidth(), imgBox.getHeight());
                     
-                    setListItem(boxes, cornerFor, isEditing);
+                    
+                    boxes.add(isEditing, (int) boxes.getValueByKey(cornerFor));
+                    boxes.removeByKey(cornerFor);
                     setListItem(selects, cornerFor, isEditing);
 
                     cornerFor = isEditing;
@@ -129,7 +133,7 @@ public class Canvas extends JPanel {
                 Box choosen = null;
 
                 if (cornerFor == null) {
-                    for (Box box : boxes) {
+                    for (Box box : boxes.getKeys()) {
 
                         Rectangle2D rect = box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1)
                             .toRectangle2D();
@@ -171,8 +175,12 @@ public class Canvas extends JPanel {
     public void paint(Graphics g) {
         super.paint(g);
 
-        imgBox = new Box(0, 0, img.getWidth(), img.getHeight());
-        imgBox = imgBox.fit(getWidth(), getHeight(), false);
+        if (img == null) {
+            imgBox = new Box(0, 0, 500, 700).fit(getWidth(), getHeight(), false);
+        } else {
+            imgBox = new Box(0, 0, img.getWidth(), img.getHeight());
+            imgBox = imgBox.fit(getWidth(), getHeight(), false);
+        }
 
         Graphics2D g2 = (Graphics2D) g;
         g2.setStroke(new BasicStroke(2.0f));
@@ -185,10 +193,12 @@ public class Canvas extends JPanel {
     }
 
     public void drawBackground(Graphics2D g) {
-        g.drawImage(img,
-            (int) imgBox.x1, (int) imgBox.y1,
-            (int) imgBox.getWidth(),
-            (int) imgBox.getHeight(), null);
+        if (img != null) {
+            g.drawImage(img,
+                (int) imgBox.x1, (int) imgBox.y1,
+                (int) imgBox.getWidth(),
+                (int) imgBox.getHeight(), null);
+        }
     }
 
 
@@ -196,7 +206,7 @@ public class Canvas extends JPanel {
         if (boxes.isEmpty())
             return;
         g.setColor(Color.BLUE);
-        for (Box box : boxes) {
+        for (Box box : boxes.getKeys()) {
             box = box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
             g.drawRect((int) box.x1, (int) box.y1, (int) box.getWidth(), (int) box.getHeight());
         }

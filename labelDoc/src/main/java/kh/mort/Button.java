@@ -1,11 +1,13 @@
 package kh.mort;
 
+import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 
@@ -23,12 +25,8 @@ public class Button extends JPanel {
 
         // Button
         this.btnWidth = btnWidth;
-        btn = new JButton(icon) {
-            @Override
-            public int getWidth() {
-                return Button.this.btnWidth;
-            }
-        };
+        btn = new JButton(icon);
+        btn.setPreferredSize(new Dimension(btnWidth, btnWidth));
         this.btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         this.btnPanel.add(btn);
 
@@ -39,7 +37,8 @@ public class Button extends JPanel {
         this.about.setEditable(false);
         this.about.setOpaque(false);
 
-        this.add(btnPanel, BorderLayout.CENTER);
-        this.add(this.about, BorderLayout.SOUTH);
+        this.add(btnPanel, BorderLayout.NORTH);
+        this.add(this.about, BorderLayout.CENTER);
+        this.setBorder(BorderFactory.createDashedBorder(Color.BLUE));
     }
 }
