@@ -5,27 +5,27 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 
 import javax.swing.JPanel;
-
-import kh.mort.Dictionary;
+import kh.mort.list.ObjectList;
 
 public class Canvas extends JPanel {
 
     public BufferedImage img;
-    public Dictionary<Box, Integer> boxes;
+    public ArrayList<ImageObject> objs;
+    public ArrayList<ImageObject> selects;
+    public ObjectList list;
     
     private Point cursorPoint;
-    private List<Box> selects;
-    private Box cornerFor;
+    private ImageObject cornerFor;
     private Box imgBox;
     private Point cornerPoint;
     private Point clickedPoint;
@@ -50,18 +50,11 @@ public class Canvas extends JPanel {
         }
         return bestPoint;
     }
-    
-    public static final <T> void setListItem(List<T> list, T oldItem, T newItem) {
-        int index = list.indexOf(oldItem);
-        if (index != -1) {
-            list.set(index, newItem);
-        }
-    }
 
     public Canvas() {
-        initListeners();
-        boxes = new Dictionary<>();
+        objs = new ArrayList<>();
         selects = new ArrayList<>();
+        initListeners();
     }
 
     private void initListeners() {
@@ -72,12 +65,12 @@ public class Canvas extends JPanel {
                 cursorPoint = e.getPoint();
                 cornerPoint = null;
                 cornerFor = null;
-                for (Box box : boxes.getKeys()) {
-                    Point[] corners = box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1).getCorners();
+                for (ImageObject obj : objs) {
+                    Point[] corners = obj.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1).getCorners();
                     for (Point corner : corners) {
                         if (distance(corner, e.getPoint()) <= 5.0) {
                             cornerPoint = corner;
-                            cornerFor = box;
+                            cornerFor = obj;
                             break;
                         }
                     }
@@ -96,16 +89,21 @@ public class Canvas extends JPanel {
 
                     Box target = Box.createBox(clickedPoint, e.getPoint()).move(-imgBox.x1, -imgBox.y1)
                         .getNorm(imgBox.getWidth(), imgBox.getHeight());
-                    
-                    cornerFor = target;
+                    cornerFor = new ImageObject(target, Integer.MAX_VALUE);
+
                     basePoint = clickedPoint;
 
-                    boxes.add(cornerFor, -1);
+                    objs.add(cornerFor);
                     selects.add(cornerFor);
+
+                    list.addItemComponent(cornerFor);
+                    list.addToSelects(cornerFor);
+                    list.revalidate();
+                    list.updateSelectsUI();
 
                 } else {
 
-                    Box isEditing = cornerFor.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
+                    Box isEditing = cornerFor.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
 
                     if (basePoint == null)
                         basePoint = getFarthest(e.getPoint(), isEditing);
@@ -113,14 +111,13 @@ public class Canvas extends JPanel {
                     isEditing = Box.createBox(basePoint, e.getPoint()).move(-imgBox.x1, -imgBox.y1)
                         .getNorm(imgBox.getWidth(), imgBox.getHeight());
                     
-                    
-                    boxes.add(isEditing, (int) boxes.getValueByKey(cornerFor));
-                    boxes.removeByKey(cornerFor);
-                    setListItem(selects, cornerFor, isEditing);
+                    cornerFor.box = isEditing;
 
-                    cornerFor = isEditing;
-                    cornerPoint = e.getPoint();
+                    list.addToSelects(cornerFor);
+                    list.updateSelectsUI();
+                    
                 }
+
                 repaint();
             }
         });
@@ -129,17 +126,20 @@ public class Canvas extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
 
+                requestFocus();
+                multipleSelection = list.multipleSelection;
+
                 clickedPoint = e.getPoint();
-                Box choosen = null;
+                ImageObject choosen = null;
 
                 if (cornerFor == null) {
-                    for (Box box : boxes.getKeys()) {
+                    for (ImageObject obj : objs) {
 
-                        Rectangle2D rect = box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1)
+                        Rectangle2D rect = obj.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1)
                             .toRectangle2D();
                         
                         if (rect.contains(e.getPoint())) {
-                            choosen = box;
+                            choosen = obj;
                             break;
                         }
 
@@ -150,15 +150,19 @@ public class Canvas extends JPanel {
 
                 if (choosen == null) {
                     selects.clear();
+                    list.clearSelects();
                 } else {
                     if (!multipleSelection) {
                         selects.clear();
+                        list.clearSelects();
                     }
                     if (!selects.contains(choosen)) {
                         selects.add(choosen);
+                        list.addToSelects(choosen);
                     }
                 }
 
+                list.updateSelectsUI();
                 repaint();
             }
 
@@ -169,6 +173,35 @@ public class Canvas extends JPanel {
                 Canvas.this.getMouseMotionListeners()[0].mouseMoved(e);
             }
         });
+
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == 17) {
+                    multipleSelection = true;
+                    list.multipleSelection = true;
+                }
+            }
+            @Override
+            public void keyReleased(KeyEvent e) {
+                if (e.getKeyCode() == 17) {
+                    multipleSelection = false;
+                    list.multipleSelection = false;
+                }
+            }
+        });
+
+    }
+
+    public void addObject(ImageObject obj) {
+        if (!objs.contains(obj)) {
+            objs.add(obj);
+        }
+    }
+
+    public void removeObject(ImageObject obj) {
+        objs.remove(obj);
+        selects.remove(obj);
     }
 
     @Override
@@ -203,11 +236,11 @@ public class Canvas extends JPanel {
 
 
     public void drawBoxes(Graphics2D g) {
-        if (boxes.isEmpty())
+        if (objs.isEmpty())
             return;
         g.setColor(Color.BLUE);
-        for (Box box : boxes.getKeys()) {
-            box = box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
+        for (ImageObject obj : objs) {
+            Box box = obj.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
             g.drawRect((int) box.x1, (int) box.y1, (int) box.getWidth(), (int) box.getHeight());
         }
     }
@@ -216,8 +249,8 @@ public class Canvas extends JPanel {
         if (selects.isEmpty())
             return;
         g.setColor(new Color(0, 100, 100, 20));
-        for (Box box : selects) {
-            box = box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
+        for (ImageObject obj : selects) {
+            Box box = obj.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
             g.fillRect((int) box.x1, (int) box.y1, (int) box.getWidth(), (int) box.getHeight());
         }
     }

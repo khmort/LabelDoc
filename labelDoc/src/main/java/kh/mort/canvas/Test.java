@@ -10,7 +10,7 @@ public class Test {
     public static void main(String[] args) throws IOException {
         
         Canvas c = new Canvas();
-        c.img = ImageIO.read(new File("images/high/img-16.png"));
+        c.img = ImageIO.read(new File("pg1.jpg"));
 
         JFrame frame = new JFrame();
         frame.getContentPane().add(c);

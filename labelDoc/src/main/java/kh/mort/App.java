@@ -6,20 +6,18 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 
 import javax.swing.BorderFactory;
-import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
 import javax.swing.JTextField;
-import javax.swing.border.Border;
 import javax.swing.border.TitledBorder;
 
 import kh.mort.canvas.Box;
 import kh.mort.canvas.Canvas;
+import kh.mort.canvas.ImageObject;
 import kh.mort.list.ClassItem;
 import kh.mort.list.ClassItemRenderer;
 import kh.mort.list.ObjectList;
@@ -191,8 +189,9 @@ public class App extends JFrame
         JPanel objectsPanel = new JPanel(new BorderLayout());
         canvas = new Canvas();
         objList = new ObjectList(canvas);
+        canvas.list = objList;
         objList.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(Color.BLUE), "Objects"));
-        objList.addItemComponent(new Box(0, 0, 1, 1), 10);
+        objList.addItemComponent(new ImageObject(new Box(0.1, 0.08, 0.8, 0.1), 0));
         objectsPanel.add(classesPanel, BorderLayout.NORTH);
         objectsPanel.add(objList, BorderLayout.CENTER);
 

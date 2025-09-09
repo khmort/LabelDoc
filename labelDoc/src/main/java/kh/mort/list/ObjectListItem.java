@@ -10,19 +10,17 @@ import java.awt.event.FocusListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
-import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import kh.mort.canvas.Box;
+import kh.mort.canvas.ImageObject;
 
 public class ObjectListItem extends JPanel {
     
-    Box object;
-    int cls;
+    ImageObject obj;
     String clsText;
 
     int itemHeight;
@@ -32,13 +30,12 @@ public class ObjectListItem extends JPanel {
     JTextField classField;
     JCheckBox isVisibleCheckBox;
 
-    public ObjectListItem(ObjectList list, Box box, int cls, String clsText, int itemHeight, Color itemColor)
+    public ObjectListItem(ObjectList list, ImageObject obj, String clsText, int itemHeight, Color itemColor)
     {
         this.container = list;
         this.itemHeight = itemHeight;
-        this.object = box;
+        this.obj = obj;
         this.itemColor = itemColor;
-        this.cls = cls;
         initComponents(clsText);
         initListeners();
     }
@@ -66,9 +63,9 @@ public class ObjectListItem extends JPanel {
             @Override
             public void actionPerformed(ActionEvent arg0) {
                 if (isVisibleCheckBox.isSelected()) {
-                    container.expose(object, cls);
+                    container.expose(ObjectListItem.this);
                 } else {
-                    container.hide(object, cls);
+                    container.hide(ObjectListItem.this);
                 }
             }
         });
@@ -76,7 +73,7 @@ public class ObjectListItem extends JPanel {
         deleteBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent arg0) {
-                container.del(object, cls);
+                container.del(ObjectListItem.this);
                 container.revalidate();
             }
         });

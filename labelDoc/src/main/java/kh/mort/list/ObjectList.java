@@ -8,23 +8,22 @@ import java.util.ArrayList;
 import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 
-import kh.mort.Dictionary;
-import kh.mort.canvas.Box;
 import kh.mort.canvas.Canvas;
+import kh.mort.canvas.ImageObject;
 
 
 public class ObjectList extends JPanel {
 
     protected Canvas canvas;
-    protected Dictionary<Box, Integer> hiddens;
-    protected JPanel layoutPanel;
+    protected ArrayList<ObjectListItem> hiddens;
     protected ArrayList<ObjectListItem> selects;
+    protected JPanel layoutPanel;
     public boolean multipleSelection = false;
 
     public ObjectList(Canvas canv)
     {
         canvas = canv;
-        hiddens = new Dictionary<>();
+        hiddens = new ArrayList<>();
         selects = new ArrayList<>();
         initComponents();
     }
@@ -38,9 +37,9 @@ public class ObjectList extends JPanel {
         this.setBackground(Color.WHITE);
     }
 
-    public void addItemComponent(Box box, Integer cls)
+    public void addItemComponent(ImageObject obj)
     {
-        ObjectListItem item = new ObjectListItem(this, box, cls, "None", 18, Color.WHITE);
+        ObjectListItem item = new ObjectListItem(this, obj, "None", 18, Color.WHITE);
         layoutPanel.add(item);
     }
 
@@ -61,38 +60,29 @@ public class ObjectList extends JPanel {
         return -1;
     }
 
-    public void del(Box box, int cls)
+    public void del(ObjectListItem itm)
     {
-        canvas.boxes.remove(box, cls);
-        for (Component c : layoutPanel.getComponents()) {
-            if (c.getClass() == ObjectListItem.class) {
-                ObjectListItem item = (ObjectListItem) c;
-                if (item.object.equals(box) && item.cls == cls) {
-                    layoutPanel.remove(item);
-                    break;
-                }
-            }
-        }
+        canvas.removeObject(itm.obj);
+        layoutPanel.remove(itm);
+        canvas.repaint();
     }
 
-    public void hide(Box box, int cls)
+    public void hide(ObjectListItem itm)
     {
-        int targetIdx = canvas.boxes.indexOf(box, cls);
-        if (targetIdx != -1) {
-            canvas.boxes.remove(targetIdx);
-            hiddens.add(box, cls);
+        canvas.removeObject(itm.obj);
+        if (!hiddens.contains(itm)) {
+            hiddens.add(itm);
         }
+        canvas.repaint();
     }
 
-    public void expose(Box box, int cls)
+    public void expose(ObjectListItem itm)
     {
-        int targetIdx = hiddens.indexOf(box, cls);
-        if (targetIdx != -1) {
-            hiddens.remove(targetIdx);
-            if (!canvas.boxes.contains(box, cls)) {
-                canvas.boxes.add(box, cls);
-            }
+        hiddens.remove(itm);
+        if (!canvas.objs.contains(itm.obj)) {
+            canvas.addObject(itm.obj);
         }
+        canvas.repaint();
     }
 
     public int getItemCount()
@@ -110,6 +100,22 @@ public class ObjectList extends JPanel {
             selects.clear();
             selects.add(item);
         }
+    }
+
+    public void addToSelects(ImageObject obj)
+    {
+        for (Component c : layoutPanel.getComponents()) {
+            if (c.getClass() == ObjectListItem.class) {
+                ObjectListItem itm = (ObjectListItem) c;
+                if (itm.obj.equals(obj)) {
+                    addToSelects(itm);
+                }
+            }
+        }
+    }
+
+    public void clearSelects() {
+        selects.clear();
     }
 
     public void removeFromSelects(ObjectListItem item)
@@ -131,5 +137,7 @@ public class ObjectList extends JPanel {
                 }
             }
         }
+        canvas.selects = new ArrayList<>(selects.stream().map(x -> x.obj).toList());
+        canvas.repaint();
     }
 }
