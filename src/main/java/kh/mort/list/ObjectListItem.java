@@ -20,7 +20,7 @@ import kh.mort.canvas.ImageObject;
 
 public class ObjectListItem extends JPanel {
     
-    ImageObject obj;
+    public ImageObject obj;
     String clsText;
 
     int itemHeight;
@@ -42,7 +42,7 @@ public class ObjectListItem extends JPanel {
 
     private void initComponents(String clsText) 
     {
-        deleteBtn = new JButton(new ImageIcon("labelDoc/src/main/resources/icons8-delete-20.png"));
+        deleteBtn = new JButton(new ImageIcon("src/main/resources/icons8-delete-20.png"));
         deleteBtn.setPreferredSize(new Dimension(30, 30));
         classField = new JTextField(clsText);
         classField.setEditable(false);
@@ -82,7 +82,7 @@ public class ObjectListItem extends JPanel {
             @Override
             public void focusGained(FocusEvent arg0) {
                 container.addToSelects(ObjectListItem.this);
-                container.updateSelectsUI();
+                container.updateSelectsUI(true);
             }
             @Override
             public void focusLost(FocusEvent arg0) {

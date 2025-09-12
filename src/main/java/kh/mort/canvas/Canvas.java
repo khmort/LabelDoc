@@ -2,6 +2,7 @@ package kh.mort.canvas;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -14,7 +15,10 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 
+import javax.swing.DefaultListModel;
 import javax.swing.JPanel;
+
+import kh.mort.list.ClassItem;
 import kh.mort.list.ObjectList;
 
 public class Canvas extends JPanel {
@@ -23,6 +27,9 @@ public class Canvas extends JPanel {
     public ArrayList<ImageObject> objs;
     public ArrayList<ImageObject> selects;
     public ObjectList list;
+    public DefaultListModel<ClassItem> classesModel;
+    public double zoom = 1.0;
+    public boolean moveMode;
     
     private Point cursorPoint;
     private ImageObject cornerFor;
@@ -31,6 +38,8 @@ public class Canvas extends JPanel {
     private Point clickedPoint;
     private boolean multipleSelection = false;
     private Point basePoint;
+    private boolean isCreating;
+    private Point lastDraggedPoint;
     
     public static final double distance(Point p1, Point p2) {
         double w = p1.x - p2.x;
@@ -82,40 +91,57 @@ public class Canvas extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                
-                if (cornerFor == null) {
 
-                    selects.clear();
+                if (moveMode) {
 
-                    Box target = Box.createBox(clickedPoint, e.getPoint()).move(-imgBox.x1, -imgBox.y1)
-                        .getNorm(imgBox.getWidth(), imgBox.getHeight());
-                    cornerFor = new ImageObject(target, Integer.MAX_VALUE);
+                    if (lastDraggedPoint == null) {
+                        lastDraggedPoint = clickedPoint;
+                    }
 
-                    basePoint = clickedPoint;
+                    double dx = (lastDraggedPoint.x - e.getX()) / imgBox.getWidth();
+                    double dy = (lastDraggedPoint.y - e.getY()) / imgBox.getHeight();
 
-                    objs.add(cornerFor);
-                    selects.add(cornerFor);
+                    for (ImageObject obj : selects) {
+                        obj.box.x1 -= dx;
+                        obj.box.x2 -= dx;
+                        obj.box.y1 -= dy;
+                        obj.box.y2 -= dy;
+                    }
 
-                    list.addItemComponent(cornerFor);
-                    list.addToSelects(cornerFor);
-                    list.revalidate();
-                    list.updateSelectsUI();
+                    lastDraggedPoint = e.getPoint();
 
                 } else {
-
-                    Box isEditing = cornerFor.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
-
-                    if (basePoint == null)
-                        basePoint = getFarthest(e.getPoint(), isEditing);
-                    
-                    isEditing = Box.createBox(basePoint, e.getPoint()).move(-imgBox.x1, -imgBox.y1)
-                        .getNorm(imgBox.getWidth(), imgBox.getHeight());
-                    
-                    cornerFor.box = isEditing;
-
-                    list.addToSelects(cornerFor);
-                    list.updateSelectsUI();
-                    
+                    if (cornerFor == null) {
+    
+                        isCreating = true;
+    
+                        selects.clear();
+    
+                        Box target = Box.createBox(clickedPoint, e.getPoint()).move(-imgBox.x1, -imgBox.y1)
+                            .getNorm(imgBox.getWidth(), imgBox.getHeight());
+                        cornerFor = new ImageObject(target, Integer.MAX_VALUE);
+    
+                        basePoint = clickedPoint;
+    
+                        objs.add(cornerFor);
+                        selects.add(cornerFor);
+    
+                    } else {
+    
+                        Box isEditing = cornerFor.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
+    
+                        if (basePoint == null)
+                            basePoint = getFarthest(e.getPoint(), isEditing);
+                        
+                        isEditing = Box.createBox(basePoint, e.getPoint()).move(-imgBox.x1, -imgBox.y1)
+                            .getNorm(imgBox.getWidth(), imgBox.getHeight());
+                        
+                        cornerFor.box = isEditing;
+    
+                        list.addToSelects(cornerFor);
+                        list.updateSelectsUI(false);
+                        
+                    }
                 }
 
                 repaint();
@@ -127,9 +153,10 @@ public class Canvas extends JPanel {
             public void mousePressed(MouseEvent e) {
 
                 requestFocus();
-                multipleSelection = list.multipleSelection;
 
+                multipleSelection = list.multipleSelection;
                 clickedPoint = e.getPoint();
+
                 ImageObject choosen = null;
 
                 if (cornerFor == null) {
@@ -149,8 +176,10 @@ public class Canvas extends JPanel {
                 }
 
                 if (choosen == null) {
-                    selects.clear();
-                    list.clearSelects();
+                    if (!moveMode) {
+                        selects.clear();
+                        list.clearSelects();
+                    }
                 } else {
                     if (!multipleSelection) {
                         selects.clear();
@@ -162,12 +191,39 @@ public class Canvas extends JPanel {
                     }
                 }
 
-                list.updateSelectsUI();
+                list.updateSelectsUI(false);
                 repaint();
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
+                if (isCreating) {
+                    isCreating = false;
+                    if (classesModel.isEmpty()) {
+                        removeObject(cornerFor);
+                        cornerFor = null;
+                        cornerPoint = null;
+                    } else {
+                        String[] options = new String[classesModel.size()];
+                        for (int i = 0; i < classesModel.size(); i++) {
+                            options[i] = classesModel.get(i).name;
+                        }
+                        ListSelectionDialog selectionDialog = new ListSelectionDialog(null, "Label chooser", options);
+                        selectionDialog.setVisible(true);
+                        if (selectionDialog.getSelectedValue() == null) {
+                            removeObject(cornerFor);
+                            cornerFor = null;
+                            cornerPoint = null;
+                        } else {
+                            cornerFor.clazz = getClazz(selectionDialog.getSelectedValue());
+                            list.addItemComponent(cornerFor, selectionDialog.getSelectedValue());
+                            list.addToSelects(cornerFor);
+                            list.updateSelectsUI(false);
+                            list.revalidate();
+                        }
+                    }
+                }
+                lastDraggedPoint = null;
                 clickedPoint = null;
                 basePoint = null;
                 Canvas.this.getMouseMotionListeners()[0].mouseMoved(e);
@@ -234,21 +290,52 @@ public class Canvas extends JPanel {
         }
     }
 
-
     public void drawBoxes(Graphics2D g) {
         if (objs.isEmpty())
             return;
-        g.setColor(Color.BLUE);
         for (ImageObject obj : objs) {
+            Color clsColor = getColor(obj.clazz);
+            g.setColor(clsColor == null ? Color.BLUE : clsColor);
             Box box = obj.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
+            g.drawString(getClassName(obj.clazz), (int) box.x1, (int) box.y1 - 5);
             g.drawRect((int) box.x1, (int) box.y1, (int) box.getWidth(), (int) box.getHeight());
         }
+    }
+
+    public Color getColor(int id) {
+        for (int i=0; i<classesModel.size(); i++) {
+            ClassItem itm = classesModel.get(i);
+            if (itm.id == id) {
+                return itm.color;
+            }
+        }
+        return null;
+    }
+
+    public int getClazz(String clsName) {
+        for (int i=0; i<classesModel.size(); i++) {
+            ClassItem itm = classesModel.get(i);
+            if (itm.name.equals(clsName)) {
+                return itm.id;
+            }
+        }
+        return -1;
+    }
+
+    public String getClassName(int id) {
+        for (int i=0; i<classesModel.size(); i++) {
+            ClassItem itm = classesModel.get(i);
+            if (itm.id == id) {
+                return itm.name;
+            }
+        }
+        return "";
     }
 
     public void drawSelectsBox(Graphics2D g) {
         if (selects.isEmpty())
             return;
-        g.setColor(new Color(0, 100, 100, 20));
+        g.setColor(new Color(154, 255, 77, 40));
         for (ImageObject obj : selects) {
             Box box = obj.box.getReal(imgBox.getWidth(), imgBox.getHeight()).move(imgBox.x1, imgBox.y1);
             g.fillRect((int) box.x1, (int) box.y1, (int) box.getWidth(), (int) box.getHeight());
@@ -270,6 +357,15 @@ public class Canvas extends JPanel {
             g.drawLine(cursorPoint.x, 0, cursorPoint.x, getHeight());
             g.drawLine(0, cursorPoint.y, getWidth(), cursorPoint.y);
         }
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        Dimension parentDim = getParent().getSize();
+        return new Dimension(
+            (int) (parentDim.getWidth() * zoom),
+            (int) (parentDim.getHeight() * zoom)
+        );
     }
 
 }
